@@ -1,6 +1,7 @@
-﻿using MapEditorReborn.Events.EventArgs;
+using ProjectMER.Events.Arguments;
 using SCP956Plugin.SCP956;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 
 namespace SCP956Plugin.Handlers
@@ -11,8 +12,9 @@ namespace SCP956Plugin.Handlers
 
         public void OnSpawn(SchematicSpawnedEventArgs ev)
         {
-            if (SCP956Plugin.Instance.Config.SchematicName.Contains(ev.Name, StringComparison.InvariantCultureIgnoreCase))
+            if (SCP956Plugin.Instance.Config.SchematicName.Any(name => string.Equals(name, ev.Name, StringComparison.OrdinalIgnoreCase)))
             {
+                foreach (var toy in ev.Schematic.AdminToyBases) { toy.IsStatic = false; toy.MovementSmoothing = 0; }
                 SCP956AI aI = ev.Schematic.gameObject.AddComponent<SCP956AI>();
                 if (aI.gameObject.transform.position.y == -300f)
                 {
@@ -25,7 +27,7 @@ namespace SCP956Plugin.Handlers
 
         public void OnDestroy(SchematicDestroyedEventArgs ev)
         {
-            if (SCP956Plugin.Instance.Config.SchematicName.Contains(ev.Name, StringComparison.InvariantCultureIgnoreCase) && ev.Schematic.gameObject.TryGetComponent<SCP956AI>(out SCP956AI aI))
+            if (SCP956Plugin.Instance.Config.SchematicName.Any(name => string.Equals(name, ev.Name, StringComparison.OrdinalIgnoreCase)) && ev.Schematic.gameObject.TryGetComponent<SCP956AI>(out SCP956AI aI))
             {
                 aIs.Remove(aI);
             }

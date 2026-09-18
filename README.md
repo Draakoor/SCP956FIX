@@ -14,3 +14,8 @@ Notification:
 4. If height is not correct, change it manually in config.
 
 Original Code: https://github.com/MujisongPlay/Scp956plugin/
+
+
+## 2.0.0 compatibility update
+
+Updated for SCP:SL 14.2.7 / EXILED 9.14.2 / ProjectMER 2026.7.6.1. See [BUILD.md](BUILD.md) for reproducible build and installation steps.

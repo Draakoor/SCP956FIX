@@ -1,4 +1,4 @@
-﻿using Exiled.API.Enums;
+using Exiled.API.Enums;
 using Exiled.API.Interfaces;
 using InventorySystem.Items.Usables.Scp330;
 using PlayerRoles;
@@ -13,6 +13,10 @@ namespace SCP956Plugin
     {
         public bool IsEnabled { get; set; } = true;
         public bool Debug { get; set; } = false;
+
+        [Description("Folder under EXILED Configs containing mono 48 kHz OGG audio files.")]
+        public string AudioDirectory { get; set; } = "SCP956/Audio";
+        public float AudioVolume { get; set; } = 0.65f;
 
         //basic setting
         [Description("The name of schematic to use as model of SCP-956.")]
@@ -80,7 +84,7 @@ namespace SCP956Plugin
         public RoleTypeId[] KillableDisturbingRoles { get; set; } = new RoleTypeId[] { };
         public bool OnlyKillDisturbingWhileOwnScp330 { get; set; } = true;
         public string DeathReasonDIsturbingWay { get; set; } = "Get out of my way.";
-        public string DeathReason { get; set; } = "Died by pony!";
+        public string DeathReason { get; set; } = "SCP-956";
         public float CooldownToFaceAnotherTarget { get; set; } = 1f;
         public ItemType DeathGunSoundSource { get; set; } = ItemType.GunAK;
         public byte DeathGunSoundLoudness { get; set; } = 50;

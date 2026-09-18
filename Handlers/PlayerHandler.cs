@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -79,7 +79,11 @@ namespace SCP956Plugin.Handlers
         public void OnShooting(ShootingEventArgs ev)
         {
             ev.IsAllowed = IsAllowed(ev.Player.ReferenceHub) ? ev.IsAllowed : false;
-            if (ev.IsAllowed && SCP956Plugin.Instance.Config.Scp956CanHit && SCP956Plugin.Instance.Config.DamagableTypes.Contains(Exiled.API.Enums.DamageType.Firearm))
+        }
+
+        public void OnShot(ShotEventArgs ev)
+        {
+            if ( SCP956Plugin.Instance.Config.Scp956CanHit && SCP956Plugin.Instance.Config.DamagableTypes.Contains(Exiled.API.Enums.DamageType.Firearm))
             {
                 foreach (SCP956AI aI in SchematicHandler.aIs)
                 {

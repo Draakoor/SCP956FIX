@@ -1,5 +1,6 @@
-﻿using Exiled.API.Features;
-using MapEditorReborn.Events.Handlers;
+using System.Linq;
+using Exiled.API.Features;
+using ProjectMER.Events.Handlers;
 using MEC;
 using SCP956Plugin.Handlers;
 using SCP956Plugin.SCP956;
@@ -13,6 +14,11 @@ namespace SCP956Plugin
 {
     public class SCP956Plugin : Plugin<Config>
     {
+        public override string Name => "SCP956FIX";
+        public override string Prefix => "scp956";
+        public override string Author => "Draakoor / original SCP-956 contributors";
+        public override Version Version => new Version(2, 0, 0);
+        public override Version RequiredExiledVersion => new Version(9, 14, 2);
         public static SCP956Plugin Instance { get; private set; }
 
         private SchematicHandler SchematicHandler;
@@ -22,12 +28,16 @@ namespace SCP956Plugin
         {
             Instance = this;
             RegisterEvent();
+            PinataAudio.Load(Config);
+            base.OnEnabled();
         }
 
         public override void OnDisabled()
         {
+            Cleanup();
             UnRegisterEvent();
             Instance = null;
+            base.OnDisabled();
         }
 
         void RegisterEvent()
@@ -38,6 +48,8 @@ namespace SCP956Plugin
             Schematic.SchematicSpawned += SchematicHandler.OnSpawn;
             Schematic.SchematicDestroyed += SchematicHandler.OnDestroy;
             Exiled.Events.Handlers.Server.RoundStarted += OnRoundStart;
+            Exiled.Events.Handlers.Server.WaitingForPlayers += Cleanup;
+            Exiled.Events.Handlers.Player.Shot += PlayerHandler.OnShot;
             Exiled.Events.Handlers.Server.RoundEnded += OnRoundEnd;
             Exiled.Events.Handlers.Player.ChangingItem += PlayerHandler.ChangeItem;
             Exiled.Events.Handlers.Player.DroppingItem += PlayerHandler.DropItem;
@@ -60,6 +72,8 @@ namespace SCP956Plugin
         {
             Schematic.SchematicSpawned -= SchematicHandler.OnSpawn;
             Exiled.Events.Handlers.Server.RoundStarted -= OnRoundStart;
+            Exiled.Events.Handlers.Server.WaitingForPlayers -= Cleanup;
+            Exiled.Events.Handlers.Player.Shot -= PlayerHandler.OnShot;
             Schematic.SchematicDestroyed -= SchematicHandler.OnDestroy;
             Exiled.Events.Handlers.Server.RoundEnded -= OnRoundEnd;
             Exiled.Events.Handlers.Player.ChangingItem -= PlayerHandler.ChangeItem;
@@ -84,15 +98,25 @@ namespace SCP956Plugin
 
         void OnRoundStart()
         {
-            for (int i = 0; i < Config.MaximumCountOfScp956; i++)
+            Cleanup();
+            for (int i = 0; i < Math.Max(0, Math.Min(8, Config.MaximumCountOfScp956)); i++)
             {
-                MapEditorReborn.API.Features.ObjectSpawner.SpawnSchematic(SCP956Plugin.Instance.Config.SchematicName.RandomItem(), new Vector3(0f, -300f, 0f), Quaternion.Euler(0f, UnityEngine.Random.Range(0f, 360f), 0f), Vector3.one, null);
+                if (Config.SchematicName.Length == 0 || !ProjectMER.Features.ObjectSpawner.TrySpawnSchematic(Config.SchematicName[UnityEngine.Random.Range(0, Config.SchematicName.Length)], new Vector3(0f, -300f, 0f), Quaternion.Euler(0f, UnityEngine.Random.Range(0f, 360f), 0f), Vector3.one, out _))
+                    Log.Error("SCP-956: configured ProjectMER schematic is missing.");
             }
+        }
+
+        void Cleanup()
+        {
+            foreach (var ai in SchematicHan.aIs.ToArray())
+                if (ai != null) UnityEngine.Object.Destroy(ai.gameObject);
+            SchematicHan.aIs.Clear();
+            SCP956AI.DoorList.Clear();
         }
 
         void OnRoundEnd(Exiled.Events.EventArgs.Server.RoundEndedEventArgs ev)
         {
-            SchematicHandler.aIs.Clear();
+            Cleanup();
         }
     }
 }

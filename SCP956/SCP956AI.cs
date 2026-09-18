@@ -1,4 +1,4 @@
-﻿using CustomPlayerEffects;
+using CustomPlayerEffects;
 using Exiled.API.Features;
 using Interactables;
 using Interactables.Interobjects;
@@ -40,15 +40,33 @@ namespace SCP956Plugin.SCP956
             this.moveTime = config.TimeToApproachTarget;
             this.chargeTime = config.TimeToCharge;
             this.coolTime = config.CooldownToFaceAnotherTarget;
+            audio = new PinataAudio(GetInstanceID());
+            if (Spawned) audio.StartLoop(transform.position);
             if (config.Scp956CanHit)
             {
                 Health = config.Scp956Hp;
             }
         }
 
+        private float nextThink;
+        private PinataAudio audio;
+        private readonly Dictionary<ReferenceHub, (bool God, bool Ensnared)> previousEffects = new Dictionary<ReferenceHub, (bool, bool)>();
+
+        void OnDestroy()
+        {
+            foreach (var hub in previousEffects.Keys.ToArray()) TurnEffects(hub, false, true);
+            audio?.Dispose();
+            DoorList.Remove(CurrentDoor);
+            Handlers.SchematicHandler.aIs.Remove(this);
+        }
+
         void Update()
         {
-            this.statusTimer += Time.deltaTime;
+            if (!Round.IsStarted || SCP956Plugin.Instance == null) return;
+            audio?.Move(transform.position);
+            if (Time.time < nextThink) return;
+            float step = 0.1f; nextThink = Time.time + step;
+            this.statusTimer += step;
             if (Spawned)
             {
                 if (this.IsFlying)
@@ -59,7 +77,7 @@ namespace SCP956Plugin.SCP956
                 {
                     this.transform.position = this.lerpPos;
                 }
-                this.transform.SetPositionAndRotation(Vector3.Lerp(this.transform.position, lerpPos, Time.deltaTime * 8f), Quaternion.Lerp(this.transform.rotation, Quaternion.Euler(Vector3.up * this.lerpRot), Time.deltaTime * 10f));
+                this.transform.SetPositionAndRotation(Vector3.Lerp(this.transform.position, lerpPos, step * 8f), Quaternion.Lerp(this.transform.rotation, Quaternion.Euler(Vector3.up * this.lerpRot), step * 10f));
                 this.lerpPos = this.transform.position;
                 this.lerpRot = this.transform.rotation.eulerAngles.y;
                 if (statusTimer >= (DestroyNow ? config.DespawnFailedTryAgainTime : config.DespawnTime))
@@ -74,10 +92,10 @@ namespace SCP956Plugin.SCP956
                         DestroyScp956();
                     }
                 }
-                Timer += Time.deltaTime;
+                Timer += step;
                 foreach (ReferenceHub hub in ReferenceHub.AllHubs)
                 {
-                    if (hub.isLocalPlayer)
+                    if (hub.isLocalPlayer || !(hub.roleManager.CurrentRole is FpcStandardRoleBase))
                     {
                         continue;
                     }
@@ -94,6 +112,7 @@ namespace SCP956Plugin.SCP956
                         if (!Targetable.Keys.Contains(hub))
                         {
                             Targetable.Add(hub, reason);
+                            audio?.Play("Pinata_trigger_35", transform.position, new List<ReferenceHub> { hub });
                             TimerPerReferenceHub.Add(hub, Timer + TimePerReason[reason]);
                             if (config.ResetTimerWhenTargetablePlayerObserved)
                             {
@@ -104,6 +123,7 @@ namespace SCP956Plugin.SCP956
                         else if (TimerPerReferenceHub.TryGetValue(hub, out float time) && Timer >= time && !Targeted.Contains(hub))
                         {
                             Targeted.Add(hub);
+                            audio?.Play("Pinata_trigger_200", transform.position, new List<ReferenceHub> { hub });
                             TurnEffects(hub, true);
                         }
                         else if (config.TargetingAmbient != -1 && Player.TryGet(hub, out Player target))
@@ -131,7 +151,7 @@ namespace SCP956Plugin.SCP956
                 TargetPos = (Target.roleManager.CurrentRole as FpcStandardRoleBase).FpcModule.Position;
                 statusTimer = 0f;
                 DestroyNow = false;
-                this._sequenceTimer += Time.deltaTime;
+                this._sequenceTimer += step;
                 Vector3 normalized = (TargetPos - this.transform.position).normalized;
                 float b = Vector3.Angle(normalized, Vector3.forward) * Mathf.Sign(Vector3.Dot(normalized, Vector3.right));
                 this.lerpRot = Mathf.LerpAngle(this._initialRot, b, (this._sequenceTimer - coolTime) / (rotateTime - (coolTime + rotateTime / 6f)));
@@ -161,6 +181,7 @@ namespace SCP956Plugin.SCP956
                 }
                 if (!triggered)
                 {
+                    audio?.Play("Pinata_attack", transform.position);
                     TurnEffects(Target, false, true);
                     triggered = true;
                     return;
@@ -196,6 +217,7 @@ namespace SCP956Plugin.SCP956
                     this.gameObject.transform.rotation = Quaternion.Euler(0f, this.lerpRot, 0f);
                     DoorList.Add(door);
                     Spawned = true;
+                    audio?.StartLoop(pos);
                     if (config.Scp956CanHit)
                     {
                         Health = config.Scp956Hp;
@@ -231,9 +253,9 @@ namespace SCP956Plugin.SCP956
 
         public void OnShot(Exiled.Events.EventArgs.Player.ShotEventArgs ev)
         {
-            if (ev.RaycastHit.collider.transform.root == this.transform)
+            if (ev.RaycastHit.collider != null && ev.RaycastHit.collider.GetComponentInParent<SCP956AI>() == this)
             {
-                Damage(ev.Damage, ev.Player.ReferenceHub);
+                Damage(ev.Damage, ev.Player?.ReferenceHub);
             }
         }
 
@@ -241,7 +263,7 @@ namespace SCP956Plugin.SCP956
         {
             if (CheckVisibility(this.transform.position, ev.Position) && Vector3.Distance(ev.Position, this.transform.position) <= 9f)
             {
-                Damage(400f / Mathf.Max(1f, Mathf.Pow(Vector3.Distance(ev.Position, this.transform.position), 2f)), ev.Player.ReferenceHub);
+                Damage(400f / Mathf.Max(1f, Mathf.Pow(Vector3.Distance(ev.Position, this.transform.position), 2f)), ev.Player?.ReferenceHub);
             }
         }
 
@@ -252,8 +274,8 @@ namespace SCP956Plugin.SCP956
                 return;
             }
             Health -= damage;
-            Hitmarker.SendHitmarkerDirectly(attacker, 1f);
-            if (config.AddTargetableWhoDamageScp956)
+            if (attacker != null) Hitmarker.SendHitmarkerDirectly(attacker, 1f);
+            if (attacker != null && config.AddTargetableWhoDamageScp956)
             {
                 TimerForAnger[attacker] = config.DamageScp956RememberTimer + Timer;
             }
@@ -280,6 +302,7 @@ namespace SCP956Plugin.SCP956
 
         void DestroyScp956()
         {
+            audio?.StopLoop();
             DestroyNow = false;
             this.gameObject.transform.position = new Vector3(0f, -300f, 0f);
             statusTimer = 0f;
@@ -320,7 +343,7 @@ namespace SCP956Plugin.SCP956
                 Vector3 currentPos = this.gameObject.transform.position;
                 foreach (ReferenceHub hub in ReferenceHub.AllHubs)
                 {
-                    if (hub.isLocalPlayer)
+                    if (hub.isLocalPlayer || !(hub.roleManager.CurrentRole is FpcStandardRoleBase))
                     {
                         continue;
                     }
@@ -336,7 +359,7 @@ namespace SCP956Plugin.SCP956
         private bool PlayerCheck(ReferenceHub hub, out TargetingReason reason)
         {
             reason = TargetingReason.NormalCondition;
-            if (hub.roleManager.CurrentRole.RoleTypeId == RoleTypeId.Spectator)
+            if (hub == null || !(hub.roleManager.CurrentRole is FpcStandardRoleBase) || !Player.TryGet(hub, out var checkedPlayer) || !checkedPlayer.IsAlive || checkedPlayer.IsNPC)
             {
                 return false;
             }
@@ -372,11 +395,12 @@ namespace SCP956Plugin.SCP956
             {
                 return;
             }
+            if (ply == null) ply = ReferenceHub.HostHub;
             if (vector3 == Vector3.zero)
             {
                 vector3 = ply.transform.position;
             }
-            int num = (UnityEngine.Random.value < config.SpecialMethodPercentage * 0.05f && config.UseSpecialCandyPinkSpawnMethod) ? 1 : 0;
+            int num = (UnityEngine.Random.value < Mathf.Clamp01(config.SpecialMethodPercentage / 100f) && config.UseSpecialCandyPinkSpawnMethod) ? 1 : 0;
             for (int i = 0; i < SCP956Plugin.Instance.Config.CandyDropCount; i++)
             {
                 PickupSyncInfo psi = new PickupSyncInfo(ItemType.SCP330, scp330Bag.Weight);
@@ -422,20 +446,18 @@ namespace SCP956Plugin.SCP956
                     }
                 }
             }
-            if (config.FreezeTarget)
+            if (hub == null) return;
+            if (Enable)
             {
-                if (Enable)
-                {
-                    hub.playerEffectsController.EnableEffect<Ensnared>();
-                }
-                else
-                {
-                    hub.playerEffectsController.DisableEffect<Ensnared>();
-                }
+                if (!previousEffects.ContainsKey(hub)) previousEffects[hub] = (hub.characterClassManager.GodMode, hub.playerEffectsController.GetEffect<Ensnared>().IsEnabled);
+                if (config.FreezeTarget) hub.playerEffectsController.EnableEffect<Ensnared>();
+                if (config.SetTargetInvincible) hub.characterClassManager.GodMode = true;
             }
-            if (config.SetTargetInvincible)
+            else if (previousEffects.TryGetValue(hub, out var old))
             {
-                hub.characterClassManager.GodMode = Enable;
+                if (config.FreezeTarget && !old.Ensnared) hub.playerEffectsController.DisableEffect<Ensnared>();
+                if (config.SetTargetInvincible) hub.characterClassManager.GodMode = old.God;
+                previousEffects.Remove(hub);
             }
             if (Enable && config.LockInventory)
             {
@@ -445,7 +467,7 @@ namespace SCP956Plugin.SCP956
 
         private bool CheckVisibility(Vector3 checkPos, Vector3 humanPos)
         {
-            return !Physics.Linecast(humanPos, checkPos, out RaycastHit hit, WallMask) || hit.collider.transform.root.gameObject.TryGetComponent<SCP956AI>(out SCP956AI aI);
+            return !Physics.Linecast(humanPos, checkPos, out RaycastHit hit, WallMask) || hit.collider.GetComponentInParent<SCP956AI>() == this;
         }
 
         public bool TryGetSpawnPos(out Vector3 pos, out DoorVariant doo)
@@ -459,11 +481,11 @@ namespace SCP956Plugin.SCP956
                 {
                     continue;
                 }
-                if (!(hub.roleManager.CurrentRole is FpcStateProcessor))
+                if (!(hub.roleManager.CurrentRole is FpcStandardRoleBase))
                 {
                     continue;
                 }
-                RoomIdentifier identifier = RoomIdUtils.RoomAtPositionRaycasts((hub.roleManager.CurrentRole as FpcStandardRoleBase).FpcModule.Position);
+                RoomIdentifier identifier = Room.Get((hub.roleManager.CurrentRole as FpcStandardRoleBase).FpcModule.Position)?.Identifier;
                 if (!(identifier == null) && config.SpawnableZone.Contains(identifier.Zone))
                 {
                     int num;
@@ -510,18 +532,18 @@ namespace SCP956Plugin.SCP956
             {
                 return false;
             }
-            int index = UnityEngine.Random.Range(0, list.Count - 1);
+            int index = UnityEngine.Random.Range(0, list.Count);
             doo = list[index];
             list.Remove(doo);
             Transform transform = doo.transform;
-            pos = transform.position + 0.75f * (UnityEngine.Random.Range(0, 1) * 2f - 1f) * transform.forward + Vector3.up * config.SchematicOffsetHeight;
-            if (Physics.SphereCast(pos, 0.5f, transform.right * (UnityEngine.Random.Range(0, 1) * 2f - 1f), out RaycastHit hit, 10f, FpcStateProcessor.Mask) && hit.distance >= 0.3f)
+            pos = transform.position + 0.75f * (UnityEngine.Random.Range(0, 2) * 2f - 1f) * transform.forward + Vector3.up * config.SchematicOffsetHeight;
+            if (Physics.SphereCast(pos, 0.5f, transform.right * (UnityEngine.Random.Range(0, 2) * 2f - 1f), out RaycastHit hit, 10f, FpcStateProcessor.Mask) && hit.distance >= 0.3f)
             {
                 Vector3 vector = hit.point + hit.normal * 0.5f;
                 pos = new Vector3(vector.x, transform.position.y + config.SchematicOffsetHeight, vector.z);
                 if (config.LogsItslocation)
                 {
-                    ServerConsole.AddLog(Name + " Spawned in: " + MapGeneration.RoomIdUtils.RoomAtPosition(pos).name);
+                    ServerConsole.AddLog(Name + " Spawned in: " + (Room.Get(pos)?.Type.ToString() ?? "unknown room") + " at " + pos);
                 }
                 return true;
             }
@@ -546,11 +568,6 @@ namespace SCP956Plugin.SCP956
                     hub.playerStats.DealDamage(new CustomReasonDamageHandler(config.DeathReasonDIsturbingWay));
                 }
             }
-        }
-
-        internal void OnShot(ShootingEventArgs ev)
-        {
-            throw new NotImplementedException();
         }
 
         public float statusTimer = 0f;
