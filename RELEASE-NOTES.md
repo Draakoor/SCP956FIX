@@ -1,9 +1,9 @@
-Compatibility release for SCP:SL 14.2.7, EXILED 9.14.2 and ProjectMER 2026.7.6.1.
+# SCP956FIX 2.1.0
 
-- Migrated obsolete MapEditorReborn APIs to ProjectMER.
-- Added round lifecycle cleanup and corrected model handling.
-- Added four operator-provided positional/targeting sound cues; corrected targeting, damage and restoration of temporary effects.
+Rebuilt for SCP:SL 14.2.8 (Steam public build 25890254), EXILED 9.15.2, LabAPI 1.1.7 and ProjectMER 2026.7.6.1.
 
-Built against the actual server references. Model loading and round spawning verified on the Linux server; real-player interaction/audio playtesting remains necessary.
+The existing gameplay, schematics, configuration options and sound cues are preserved. EXILED 9.15.2 is now the required EXILED version. The release contains the matching source code and a standalone plugin build; game assemblies are not redistributed.
 
-Install the ZIP folders relative to the server .config directory. Matching EXILED, ProjectMER and AudioPlayerApi dependencies are required.
+Back up the previous DLL, replace it in `EXILED/Plugins`, and restart the server. Preserve the existing configuration and audio folders when upgrading.
+
+Validation: standalone release build succeeded; the same DLL was deployed and verified by SHA-256. The plugin enabled on SCP:SL 14.2.8 / EXILED 9.15.2 without startup errors. The server suite passed its batch, training, anomaly and refresh checks. Client audio/visual playtesting remains separate.

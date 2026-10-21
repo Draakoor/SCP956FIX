@@ -17,8 +17,8 @@ namespace SCP956Plugin
         public override string Name => "SCP956FIX";
         public override string Prefix => "scp956";
         public override string Author => "Draakoor / original SCP-956 contributors";
-        public override Version Version => new Version(2, 0, 0);
-        public override Version RequiredExiledVersion => new Version(9, 14, 2);
+        public override Version Version => new Version(2, 1, 0);
+        public override Version RequiredExiledVersion => new Version(9, 15, 2);
         public static SCP956Plugin Instance { get; private set; }
 
         private SchematicHandler SchematicHandler;

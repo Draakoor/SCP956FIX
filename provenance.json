@@ -1,0 +1,11 @@
+{
+  "version": "2.1.0",
+  "compatibility": {
+    "scpsl": "14.2.8",
+    "exiled": "9.15.2",
+    "labapi": "1.1.7",
+    "projectmer": "2026.7.6.1"
+  },
+  "steam_build_id": "25890254",
+  "gameplay_source": "https://github.com/Draakoor/technikbudde-scpsl/tree/v1.6.0/plugins/Draakoor__SCP956FIX"
+}

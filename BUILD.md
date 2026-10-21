@@ -1,6 +1,6 @@
 # Build and install
 
-Target: SCP:SL 14.2.7, EXILED 9.14.2, LabAPI 1.1.7, ProjectMER 2026.7.6.1.
+Target: SCP:SL 14.2.8, EXILED 9.15.2, LabAPI 1.1.7, ProjectMER 2026.7.6.1.
 
 Use .NET SDK and a directory containing the matching server Managed assemblies, EXILED assemblies, ProjectMER.dll and AudioPlayerApi.dll. No game assemblies are redistributed.
 
